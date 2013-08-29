@@ -10,46 +10,47 @@ import org.testng.annotations.Test;
 public class DigitSequenceTest {
 
     public void testConstructorsAndToString() {
-        Assert.assertTrue(new DigitSequence(123).toString().equals("123"));
-        Assert.assertTrue(new DigitSequence(0).toString().equals("0"));
-        Assert.assertTrue(new DigitSequence(123, true).toString().equals("123"));
-        Assert.assertTrue(new DigitSequence(123, false).toString().equals("...123"));
-        Assert.assertTrue(new DigitSequence(1234567890).toString().equals("1234567890"));
-        Assert.assertTrue(new DigitSequence("...12345678901231324234").toString().equals("...12345678901231324234"));
-        Assert.assertTrue(new DigitSequence("12345678901231324234").toString().equals("12345678901231324234"));
-        badStringTest("");
-        badStringTest("abc");
-        badStringTest("..123");
-        badStringTest("....123");
-        badStringTest("-1");
-        badStringTest("123.456");
-        badStringTest("123a");
-    }
+        final String[] validStrings = new String[]{
+                "123", "0", "1", "-1", "...123", "1234234876",
+                "12312387123876342364129837",
+                "...12312387123876342364129837",
+                "-2349872947832",
+                "-...2349872947832",
+                "1234b9", "123123124b234"
+        };
+        for (String validString : validStrings) {
+            Assert.assertTrue(DigitSequence.of(validString).toString().equals(validString));
+        }
 
-    private void badStringTest(String s) {
-        try {
-            new DigitSequence(s);
-            Assert.fail("Expected error");
-        } catch (Error e) {
-            // Expected -- do nothing.
+        final String[] invalidStrings = new String[]{
+                "", "abc", "..123", "....123", "123.3", "123a"
+        };
+
+        for (String invalidString : invalidStrings) {
+            try {
+                DigitSequence.of(invalidString);
+                Assert.fail("Expected error");
+            } catch (Error e) {
+                // Expected -- do nothing.
+            }
         }
     }
 
     public void testEquals() {
-        Assert.assertEquals(new DigitSequence(123), new DigitSequence(123));
-        Assert.assertEquals(new DigitSequence(123, false), new DigitSequence(123, false));
-        Assert.assertEquals(new DigitSequence(0), new DigitSequence(0));
-        Assert.assertEquals(new DigitSequence(0, false), new DigitSequence(0, false));
-        Assert.assertEquals(new DigitSequence("...123123123"), new DigitSequence("...123123123"));
-        Assert.assertEquals(new DigitSequence("123123123"), new DigitSequence("123123123"));
-        Assert.assertEquals(new DigitSequence("04"), new DigitSequence("4"));
-        Assert.assertEquals(new DigitSequence("00"), new DigitSequence("0"));
-        Assert.assertNotSame(new DigitSequence("...123123123"), new DigitSequence("123123123"));
-        Assert.assertNotSame(new DigitSequence("123123123"), new DigitSequence("...123123123"));
-        Assert.assertNotSame(new DigitSequence("...0"), new DigitSequence("...1"));
-        Assert.assertNotSame(new DigitSequence("...0"), new DigitSequence("0"));
-        Assert.assertNotSame(new DigitSequence("...4"), new DigitSequence("4"));
-        Assert.assertNotSame(new DigitSequence("...4"), new DigitSequence("...14"));
+        Assert.assertEquals(DigitSequence.of("123"), DigitSequence.of("123"));
+        Assert.assertEquals(DigitSequence.of("...123"), DigitSequence.of("...123"));
+        Assert.assertEquals(DigitSequence.of("0"), DigitSequence.of("0"));
+        Assert.assertEquals(DigitSequence.of("...0"), DigitSequence.of("...0"));
+        Assert.assertEquals(DigitSequence.of("...123123123"), DigitSequence.of("...123123123"));
+        Assert.assertEquals(DigitSequence.of("123123123"), DigitSequence.of("123123123"));
+        Assert.assertEquals(DigitSequence.of("04"), DigitSequence.of("4"));
+        Assert.assertEquals(DigitSequence.of("00"), DigitSequence.of("0"));
+        Assert.assertNotSame(DigitSequence.of("...123123123"), DigitSequence.of("123123123"));
+        Assert.assertNotSame(DigitSequence.of("123123123"), DigitSequence.of("...123123123"));
+        Assert.assertNotSame(DigitSequence.of("...0"), DigitSequence.of("...1"));
+        Assert.assertNotSame(DigitSequence.of("...0"), DigitSequence.of("0"));
+        Assert.assertNotSame(DigitSequence.of("...4"), DigitSequence.of("4"));
+        Assert.assertNotSame(DigitSequence.of("...4"), DigitSequence.of("...14"));
     }
 
     public void testAddition() {
@@ -87,7 +88,7 @@ public class DigitSequenceTest {
     }
 
     private void additionTest(String augend, String addend, String sum) {
-        Assert.assertEquals(new DigitSequence(sum), new DigitSequence(augend).add(new DigitSequence(addend)));
+        Assert.assertEquals(DigitSequence.of(sum), DigitSequence.of(augend).add(DigitSequence.of(addend)));
     }
 
     public void testSubtraction() {
@@ -103,7 +104,7 @@ public class DigitSequenceTest {
     }
 
     private void subtractionTest(String minuend, String subtrahend, String difference) {
-        Assert.assertEquals(new DigitSequence(difference), new DigitSequence(minuend).subtract(new DigitSequence(subtrahend)));
+        Assert.assertEquals(DigitSequence.of(difference), DigitSequence.of(minuend).subtract(DigitSequence.of(subtrahend)));
     }
 
     public void testMultiplication() {
