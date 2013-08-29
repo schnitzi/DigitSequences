@@ -53,6 +53,7 @@ public class DigitSequenceTest {
     }
 
     public void testAddition() {
+
         // Basic tests of finites.
         additionTest("123", "123", "246");
         additionTest("123", "0", "123");
@@ -91,6 +92,18 @@ public class DigitSequenceTest {
 
     public void testSubtraction() {
 
+        // Test the finites.
+        subtractionTest("10", "5", "5");
+        subtractionTest("10", "0", "10");
+        subtractionTest("0", "1", "-1");
+        subtractionTest("10", "10", "0");
+
+        // Finite minus positive infinite - should be a negative infinite number.
+
+    }
+
+    private void subtractionTest(String minuend, String subtrahend, String difference) {
+        Assert.assertEquals(new DigitSequence(difference), new DigitSequence(minuend).subtract(new DigitSequence(subtrahend)));
     }
 
     public void testMultiplication() {
