@@ -1,9 +1,6 @@
 package org.computronium.digitsequences;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -12,29 +9,21 @@ import java.util.regex.Pattern;
 public class DigitSequence {
 
     private static final short UNKNOWN = -1;
-    private static final Pattern FORMAT = Pattern.compile("(\\-)?(\\.{3})?([0-9]+)(b([0-9]+))?");
+    private static final Pattern FORMAT = Pattern.compile("(\\-)?" + PowerSeries.FORMAT);
 
     public static final DigitSequence ZERO = DigitSequence.of("0");
     public static final DigitSequence ONE = DigitSequence.of("1");
 
     private final boolean negative;
-    private final Series series;
+    private final PowerSeries series;
 
-    private static class Series {
-        private final int base;
-        private final boolean finite;
-        private final Short[] digits;
-
-        private Series(int base, boolean finite, Short[] digits) {
-            this.base = base;
-            this.finite = finite;
-            this.digits = digits;
-        }
+    public DigitSequence(boolean negative, int base, boolean finite, Short[] digits) {
+        this(negative, new PowerSeries(base, finite, digits));
     }
 
-    public DigitSequence(int base, boolean negative, boolean finite, Short[] digits) {
+    public DigitSequence(boolean negative, PowerSeries series) {
         this.negative = negative;
-        this.series = new Series(base, finite, digits);
+        this.series = series;
     }
 
     public static DigitSequence of(String s) {
@@ -43,8 +32,8 @@ public class DigitSequence {
 
     public short digitAt(int index) {
         if (index < size()) {
-            return series.digits[index];
-        } else if (series.finite) {
+            return series.digitAt(index);
+        } else if (series.isFinite()) {
             return 0;
         } else {
             return UNKNOWN;
@@ -52,89 +41,84 @@ public class DigitSequence {
     }
 
     public int size() {
-        return series.digits.length;
+        return series.size();
     }
 
     public boolean isFinite() {
-        return series.finite;
+        return series.isFinite();
+    }
+
+    public DigitSequence negate() {
+        if (this.equals(ZERO)) {
+            return ZERO;
+        }
+        return new Builder(this).negate().build();
+    }
+
+    public DigitSequence subtract(DigitSequence subtrahend) {
+
+        return add(subtrahend.negate());
     }
 
     public DigitSequence add(DigitSequence addend) {
 
-        Builder sum = new Builder().withFinite(series.finite && addend.isFinite());
-        int carry = 0;
-        int index = 0;
-        while (canComputeMoreDigits(carry, this, addend, index)) {
-            short thisDigit = this.digitAt(index);
-            short addendDigit = addend.digitAt(index);
-            int digitSum = carry + thisDigit + addendDigit;
-            sum.addDigit((short) (digitSum % 10));
-            carry = digitSum / 10;
+        // TODO  assert bases match, everywhere.
 
-            index++;
-        }
-        return sum.build();
-    }
-
-    private static boolean canComputeMoreDigits(int carry, DigitSequence augend, DigitSequence addend, int index) {
-        if (augend.isFinite() && addend.isFinite()) {
-            return carry > 0 || index < augend.size() || index < addend.size();
-        } else {
-            return augend.hasKnownDigitAt(index) && addend.hasKnownDigitAt(index);
-        }
-    }
-
-    public DigitSequence subtract(DigitSequence subtrahend) {
         boolean resultNegative;
-        Series resultSeries;
+        PowerSeries resultSeries;
 
-        if (negative) {
-            if (subtrahend.negative) {
-                resultNegative = true;
-                resultSeries = seriesSubtract(series, subtrahend.series);
-            }
+        if (this.negative == addend.negative) {
+            // They are the same sign, so we can just add the digits and keep the sign.
+            return new Builder()
+                    .withNegative(negative)
+                    .withSeries(series.add(addend.series)).build();
         }
-        Builder difference = new Builder().withNegative(resultNegative).with
-    }
 
-    private boolean hasKnownDigitAt(int index) {
-        return series.finite || index < size();
+        // Otherwise, it's a subtraction.  Figure out which number is larger in absolute magnitude
+        // (if we can) and subtract the smaller one from it.  Keep the sign of the larger.
+
+        PowerSeries.ComparisonResult comparison = series.compareTo(addend.series);
+        if (comparison == PowerSeries.ComparisonResult.EQUAL) {
+            // They're equal so the difference is just zero.
+            return ZERO;
+        }
+
+        DigitSequence larger, smaller;
+
+        if (comparison == PowerSeries.ComparisonResult.GREATER_THAN) {
+            larger = this;
+            smaller = addend;
+        } else if (comparison == PowerSeries.ComparisonResult.LESS_THAN) {
+            larger = addend;
+            smaller = this;
+        } else {
+            // Can't tell.  What to do?  TODO
+            larger = this;
+            smaller = addend;
+        }
+
+        return new Builder().withNegative(larger.negative).withSeries(larger.series.subtract(smaller.series)).build();
     }
 
     public DigitSequence multiply(DigitSequence multiplier) {
-        Builder product = new Builder().withFinite(series.finite && multiplier.isFinite());
-        int carry = 0;
-        int index = 0;
-        while (true) {
-            if (index >= size() || index >= multiplier.size()) {
-                break;
-            }
-            int columnSum = carry;
-            for (int i = 0; i <= index; i++) {
-                columnSum += digitAt(i) * multiplier.digitAt(index - i);
-            }
-            product.digits.add((short) (columnSum % 10));
-            carry = columnSum / 10;
-            index++;
+
+        if (this.equals(ZERO) || multiplier.equals(ZERO)) {
+            return ZERO;
         }
-        return product.build();
+
+        return new Builder()
+                .withNegative(negative ^ multiplier.negative)
+                .withSeries(series.multiply(multiplier.series))
+                .build();
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        for (Short digit : series.digits) {
-            sb.insert(0, digit);
-        }
-        if (!series.finite) {
-            sb.insert(0, "...");
-        }
         if (negative) {
-            sb.insert(0, "-");
+            sb.append("-");
         }
-        if (series.base != 10) {
-            sb.append("b").append(series.base);
-        }
+        sb.append(series);
         return sb.toString();
     }
 
@@ -145,77 +129,46 @@ public class DigitSequence {
 
         DigitSequence that = (DigitSequence) o;
 
-        if (series.finite != that.series.finite) return false;
         if (negative != that.negative) return false;
-        if (!Arrays.equals(series.digits, that.series.digits)) return false;
-
-        return true;
+        return series.equals(that.series);
     }
 
     @Override
     public int hashCode() {
-        int result = series.digits.hashCode();
-        result = 31 * result + (series.finite ? 1 : 0);
+        int result = series.hashCode();
+        result = 31 * result + (negative ? 1 : 0);
         return result;
     }
 
     public static class Builder {
-        private boolean finite;
         private boolean negative;
-        private int base = 10;
-        private List<Short> digits = new ArrayList<>();
+        private final PowerSeries.Builder series;
 
         public Builder() {
-        }
-
-        public Builder(int n) {
-            this(n, true);
+            series = new PowerSeries.Builder();
         }
 
         public Builder(int n, boolean finite) {
-            this.negative = n < 0;
-            this.finite = finite;
-            if (n == 0) {
-                digits.add((short) 0);
-            } else {
-                if (n < 0) {
-                    n = -n;
-                }
-                while (n > 0) {
-                    digits.add((short) (n % 10));
-                    n = n / 10;
-                }
-            }
+            negative = n < 0;
+            series = new PowerSeries.Builder(n<0 ? -n : n, finite);
         }
 
         public Builder(String s) {
 
-            Matcher matcher = FORMAT.matcher(s);
-            assert matcher.matches();
-
-            this.negative = matcher.group(1) != null;
-
-            this.finite = matcher.group(2) == null;
-
-            String digitString = matcher.group(3);
-            if (finite) {
-                while (digitString.length() > 1 && digitString.charAt(0) == '0') {
-                    digitString = digitString.substring(1);
-                }
+            if (s.startsWith("-")) {
+                negative = true;
+                s = s.substring(1);
             }
-            for (int i = digitString.length() - 1; i >= 0; i--) {
-                digits.add((short) (digitString.charAt(i) - '0'));
-            }
-
-            this.base = matcher.group(4) == null ? 10 : Integer.valueOf(matcher.group(5));
+            series = new PowerSeries.Builder(s);
         }
 
-        public Builder withDigits(List<Short> digits) {
-            this.digits = digits;
+        public Builder(DigitSequence digitSequence) {
+            negative = digitSequence.negative;
+            series = new PowerSeries.Builder(digitSequence.series);
         }
 
         public Builder withFinite(boolean finite) {
-            this.finite = finite;
+            series.withFinite(finite);
             return this;
         }
 
@@ -225,17 +178,27 @@ public class DigitSequence {
         }
 
         public Builder withBase(int base) {
-            this.base = base;
+            series.withBase(base);
+            return this;
+        }
+
+        public Builder withSeries(PowerSeries series) {
+            this.series.withBase(series.getBase()).withDigits(Arrays.asList(series.getDigits())).withFinite(series.isFinite());
             return this;
         }
 
         public Builder addDigit(short digit) {
-            digits.add(digit);
+            series.addDigit(digit);
             return this;
         }
 
         public DigitSequence build() {
-            return new DigitSequence(base, negative, finite, digits.toArray(new Short[0]));
+            return new DigitSequence(negative, series.build());
+        }
+
+        public Builder negate() {
+            negative = !negative;
+            return this;
         }
     }
 }

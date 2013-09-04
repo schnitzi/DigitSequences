@@ -100,15 +100,89 @@ public class DigitSequenceTest {
         subtractionTest("10", "10", "0");
 
         // Finite minus positive infinite - should be a negative infinite number.
+        subtractionTest("123", "...145", "-...022");
+        subtractionTest("0", "...12345", "-...12345");
+        subtractionTest("999", "...1", "-...2");
+        subtractionTest("9", "...1432", "-...1423");
 
+        // Finite minus negative infinite - should be positive infinite.
+        subtractionTest("123", "-...145", "...268");
+        subtractionTest("0", "-...145", "...145");
+
+        // Positive infinite minus finite - should be positive finite still.
+        subtractionTest("...842", "34", "...808");
+        subtractionTest("...842", "-3", "...845");
+
+        // Negative infinite minus finite - should be negative finite still.
+        subtractionTest("-...842", "34", "-...876");
+        subtractionTest("-...842", "-3", "-...839");
+
+        // Finite minus positive infinite - should be negative infinite.
+        subtractionTest("-842", "...34", "-...76");
+        subtractionTest("0", "...3", "-...3");
+
+        // Finite minus negative infinite - should be positive infinite.
+        subtractionTest("-842", "-...34", "...92");
+        subtractionTest("0", "-...3", "...3");
     }
 
     private void subtractionTest(String minuend, String subtrahend, String difference) {
         Assert.assertEquals(DigitSequence.of(difference), DigitSequence.of(minuend).subtract(DigitSequence.of(subtrahend)));
     }
+    
+    public void testAdditiveAssociativity() {
+        DigitSequence[] testNumbers = new DigitSequence[] {
+                DigitSequence.of("0"),
+                DigitSequence.of("1"),
+                DigitSequence.of("-1"),
+                DigitSequence.of("123"),
+                DigitSequence.of("456"),
+                DigitSequence.of("-123"),
+                DigitSequence.of("-999"),
+                DigitSequence.of("12389712391872391723197"),
+                DigitSequence.of("...123"),
+                DigitSequence.of("...0"),
+                DigitSequence.of("...1"),
+                DigitSequence.of("-...3282"),
+                DigitSequence.of("-...456"),
+                DigitSequence.of("-1")
+        };
+        for (int i=0; i<testNumbers.length; i++) {
+            for (int j=0; j<testNumbers.length; j++) {
+                DigitSequence a = testNumbers[i];
+                DigitSequence b = testNumbers[j];
+                // For each possible pairing (including pairing with itself), test that a+b-b == a.
+                Assert.assertEquals("" + a + "+" + b + "-" + b + " != " +a, a, a.add(b).subtract(b));
+            }
+        }
+    }
 
     public void testMultiplication() {
+        // Test the finites.
+        multiplicationTest("5", "1", "5");
+        multiplicationTest("1", "5", "5");
+        multiplicationTest("2", "0", "0");
+        multiplicationTest("0", "3", "0");
+        multiplicationTest("-5", "5", "-25");
+        multiplicationTest("10", "5", "50");
+        multiplicationTest("1", "-5", "-5");
+        multiplicationTest("2", "2", "4");
+        multiplicationTest("11111111111111111111", "2", "22222222222222222222");
 
+        // Finite times infinite.
+        multiplicationTest("5", "...1", "...5");
+        multiplicationTest("5", "-...1", "-...5");
+        multiplicationTest("-5", "...1", "-...5");
+        multiplicationTest("-5", "...2", "-...0");
+        multiplicationTest("5", "...111", "...555");
+        multiplicationTest("3", "...117", "...351");
+        multiplicationTest("-...117", "...3", "-...1");
+        multiplicationTest("-...98098", "...23412", "-...70376");
+        multiplicationTest("...9809823408", "...23412", "...28096");
+    }
+
+    private void multiplicationTest(String mulitiplicand, String multiplier, String product) {
+        Assert.assertEquals(DigitSequence.of(product), DigitSequence.of(mulitiplicand).multiply(DigitSequence.of(multiplier)));
     }
 
     public void testDivision() {
